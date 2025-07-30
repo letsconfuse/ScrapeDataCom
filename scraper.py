@@ -4,15 +4,15 @@ import time
 import random
 import pandas as pd
 from selenium import webdriver
-from selenium.webdriver.edge.service import Service
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-from selenium.webdriver.edge.options import Options
-from webdriver_manager.microsoft import EdgeChromiumDriverManager
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
 from fake_useragent import UserAgent
 from datetime import datetime  
 import os  # Import os module to get the current working directory
 
-def scrape_yellowpages(search_term, location):
+def scrape_yellowpages(search_term, location, should_continue):
     """
     Scrapes business information from YellowPages for a given search term and location.
     """
@@ -25,11 +25,15 @@ def scrape_yellowpages(search_term, location):
     options = Options()
     options.use_chromium = True
     options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    options.add_experimental_option('useAutomationExtension', False)
+
 
     ua = UserAgent()
     options.add_argument(f"user-agent={ua.random}")
 
-    driver = webdriver.Edge(service=Service(EdgeChromiumDriverManager().install()), options=options)
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+
 
     # Get the current working directory where the script is run
     current_directory = os.getcwd()
@@ -43,6 +47,10 @@ def scrape_yellowpages(search_term, location):
 
     try:
         while True:
+            if not should_continue():
+                print("🛑 Scraping interrupted by user.")
+                break
+
             url = base_url + str(page_num)
             driver.get(url)
             time.sleep(random.uniform(3, 6))
@@ -72,7 +80,7 @@ def scrape_yellowpages(search_term, location):
 
             if business_listings:
                 df = pd.DataFrame(business_listings)
-                df.to_csv(filename, mode='a', header=not pd.io.common.file_exists(filename), index=False)
+                df.to_csv(filename, mode='a', header=not os.path.exists(filename), index=False)
                 print(f"✅ Data saved to {filename}")
                 business_listings.clear()
 
